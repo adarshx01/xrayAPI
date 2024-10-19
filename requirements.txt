@@ -1,13 +1,14 @@
 flask==2.2.3
 flask-cors==3.0.10
-torch==2.0.0
-torchvision==0.15.0
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.0.0+cpu
+torchvision==0.15.0+cpu
 torchxrayvision==0.0.39
 scikit-image==0.19.3
 numpy==1.23.5
 Werkzeug==2.2.3
 gunicorn==20.1.0
 python-dotenv==0.19.2
-whitenoise==6.4.0  # for serving static files
-sentry-sdk==1.25.1  # for error tracking
-prometheus-client==0.17.1  # for metrics    
+whitenoise==6.4.0
+sentry-sdk==1.25.1
+prometheus-client==0.17.1
