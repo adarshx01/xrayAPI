@@ -1,11 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
 import os
-import sentry_sdk
-from sentry_sdk.integrations.flask import FlaskIntegration
-from prometheus_client import make_wsgi_app
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 def create_app():
     app = Flask(__name__)
@@ -16,12 +11,17 @@ def create_app():
     # Configure Sentry for error tracking (if SENTRY_DSN is provided)
     sentry_dsn = os.getenv('SENTRY_DSN')
     if sentry_dsn:
-        sentry_sdk.init(
-            dsn=sentry_dsn,
-            integrations=[FlaskIntegration()],
-            traces_sample_rate=1.0,
-            environment=os.getenv('FLASK_ENV', 'production')
-        )
+        try:
+            import sentry_sdk
+            from sentry_sdk.integrations.flask import FlaskIntegration
+            sentry_sdk.init(
+                dsn=sentry_dsn,
+                integrations=[FlaskIntegration()],
+                traces_sample_rate=1.0,
+                environment=os.getenv('FLASK_ENV', 'production')
+            )
+        except Exception as e:
+            app.logger.warning(f"Sentry initialization failed: {str(e)}")
     
     # Configure upload folder
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
@@ -35,11 +35,17 @@ def create_app():
     app.register_blueprint(api_bp)
     
     # Add ProxyFix middleware for proper header handling behind proxy
+    from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     
     # Add Prometheus metrics endpoint
-    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
-        '/metrics': make_wsgi_app()
-    })
+    try:
+        from prometheus_client import make_wsgi_app
+        from werkzeug.middleware.dispatcher import DispatcherMiddleware
+        app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+            '/metrics': make_wsgi_app()
+        })
+    except Exception as e:
+        app.logger.warning(f"Prometheus metrics initialization failed: {str(e)}")
     
     return app

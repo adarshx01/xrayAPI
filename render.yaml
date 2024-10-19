@@ -14,4 +14,7 @@ services:
       - key: PIP_EXTRA_INDEX_URL
         value: https://download.pytorch.org/whl/cpu
     healthCheckPath: /health
+    healthCheckTimeout: 100
+    healthCheckInterval: 15
     autoDeploy: true
+    pullRequestPreviewsEnabled: false
