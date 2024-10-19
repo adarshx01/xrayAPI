@@ -1,11 +1,27 @@
-# app/__init__.py
 from flask import Flask
 from flask_cors import CORS
 import os
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
+from prometheus_client import make_wsgi_app
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 def create_app():
     app = Flask(__name__)
+    
+    # Initialize CORS
     CORS(app)
+    
+    # Configure Sentry for error tracking (if SENTRY_DSN is provided)
+    sentry_dsn = os.getenv('SENTRY_DSN')
+    if sentry_dsn:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=1.0,
+            environment=os.getenv('FLASK_ENV', 'production')
+        )
     
     # Configure upload folder
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
@@ -18,13 +34,12 @@ def create_app():
     from app.api.routes import api_bp
     app.register_blueprint(api_bp)
     
+    # Add ProxyFix middleware for proper header handling behind proxy
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    
+    # Add Prometheus metrics endpoint
+    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+        '/metrics': make_wsgi_app()
+    })
+    
     return app
-
-# run.py
-from app import create_app
-
-app = create_app()
-
-if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
